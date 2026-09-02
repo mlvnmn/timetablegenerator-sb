@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Trash2, BookOpen, AlertCircle, Layers } from 'lucide-react';
+import { Plus, Trash2, AlertCircle, Copy } from 'lucide-react';
 
 function generateId() {
   return `subj_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -43,7 +43,7 @@ export default function Step2_Subjects({ classes, subjects, setSubjects, onNext,
   const copySubjects = (sourceClassId, targetClassId) => {
     const sourceSubjects = subjects.filter(s => s.classId === sourceClassId);
     if (sourceSubjects.length === 0) {
-      alert("Source class has no subjects to copy!");
+      alert("Selected class has no subjects to copy!");
       return;
     }
     const targetSubjects = subjects.filter(s => s.classId === targetClassId);
@@ -54,7 +54,6 @@ export default function Step2_Subjects({ classes, subjects, setSubjects, onNext,
       return;
     }
 
-    // Generate new copies with fresh IDs
     const copies = sourceSubjects.map(s => ({
       id: generateId(),
       classId: targetClassId,
@@ -70,7 +69,7 @@ export default function Step2_Subjects({ classes, subjects, setSubjects, onNext,
     });
   };
 
-  // ── Duplicate detection per class (flat mapped elective names) ────────────────
+  // ── Duplicate detection ───────────────────────────────────────────────────
   const getActiveNamesForClass = (classId) => {
     const names = [];
     byClass(classId).forEach(s => {
@@ -84,7 +83,7 @@ export default function Step2_Subjects({ classes, subjects, setSubjects, onNext,
     return names;
   };
 
-  const dupNamesByClass = {}; // classId -> Set of duplicate lowercase names
+  const dupNamesByClass = {};
   let hasGlobalDuplicates = false;
   classes.forEach(cls => {
     const names = getActiveNamesForClass(cls.id);
@@ -113,88 +112,55 @@ export default function Step2_Subjects({ classes, subjects, setSubjects, onNext,
 
   const canProceed = subjects.length > 0 && !hasEmptyNames && !hasGlobalDuplicates;
 
-  const totalSubjects = subjects.reduce((sum, s) => {
-    let count = 1;
-    if (s.isElective && s.electiveSubjects) {
-      count += s.electiveSubjects.length;
-    }
-    return sum + count;
-  }, 0);
-
-  const totalHours = subjects.reduce((sum, s) => sum + (s.hoursPerWeek || 0), 0);
-
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-5 animate-fade-in">
 
       {/* Header */}
-      <div className="text-center space-y-2">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200/60 text-blue-700 text-xs font-semibold">
-          <BookOpen size={13} />
-          Step 2 of 5
-        </div>
-        <h2 className="text-xl font-extrabold text-slate-900">Subjects Management</h2>
-        <p className="text-slate-500 text-sm max-w-lg mx-auto">
-          Type in all subjects for each class. Mark a subject as Elective to add parallel subjects (e.g. Data Science running with Machine Learning).
+      <div className="border-b border-[#243b4a]/10 pb-4">
+        <h2 className="text-lg font-black text-[#243b4a] tracking-tight">Subjects Management</h2>
+        <p className="text-xs text-[#243b4a]/70 font-medium mt-0.5">
+          Define weekly subject hours per class. Enable Elective Group for parallel running courses.
         </p>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          { label: 'Classes',          value: classes.length, color: 'text-blue-600'  },
-          { label: 'Total Subjects',   value: totalSubjects,  color: 'text-indigo-600' },
-          { label: 'Total Hrs / Week', value: totalHours,     color: 'text-sky-600'    },
-        ].map(s => (
-          <div key={s.label} className="glass-card p-4 text-center bg-white border border-slate-200">
-            <div className={`text-2xl font-black ${s.color}`}>{s.value}</div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">{s.label}</div>
-          </div>
-        ))}
       </div>
 
       {/* Per-class sections */}
       {classes.length === 0 ? (
-        <div className="glass-card p-8 text-center text-slate-500 bg-white border border-slate-200">
-          No classes configured. Go back to Step 1 to add classes first.
+        <div className="bg-white border border-[#243b4a]/15 rounded-xl p-8 text-center text-xs text-[#243b4a]/60 font-semibold">
+          No classes configured yet. Return to Step 1 to add classes first.
         </div>
       ) : (
         <div className="space-y-4">
           {classes.map(cls => {
             const classSubjects = byClass(cls.id);
             const classHours    = classSubjects.reduce((sum, s) => sum + (s.hoursPerWeek || 0), 0);
-            const classHasDup   = dupNamesByClass[cls.id] && dupNamesByClass[cls.id].size > 0;
 
             return (
-              <div key={cls.id} className={`glass-card overflow-hidden bg-white border ${classHasDup ? 'border-red-300' : 'border-slate-200'}`}>
+              <div key={cls.id} className="bg-white border border-[#243b4a]/15 rounded-xl overflow-hidden shadow-2xs">
                 {/* Class header */}
-                <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200 flex-wrap gap-2">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200/50 flex items-center justify-center flex-shrink-0">
-                      <Layers size={14} className="text-blue-600" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-extrabold text-slate-900">{cls.label}</div>
-                      <div className="text-[10px] text-slate-400 font-bold mt-0.5">
-                        {classSubjects.length} row{classSubjects.length !== 1 ? 's' : ''} · {classHours} hrs/week
-                        {classHasDup && <span className="text-red-500 ml-2">· duplicate names!</span>}
-                      </div>
-                    </div>
+                <div className="flex items-center justify-between px-4 py-3 bg-[#243b4a]/5 border-b border-[#243b4a]/10 flex-wrap gap-2">
+                  <div>
+                    <span className="text-xs font-black text-[#243b4a]">{cls.label}</span>
+                    <span className="text-xs text-[#243b4a]/60 ml-2 font-bold">
+                      ({classSubjects.length} subjects · {classHours} hrs/week)
+                    </span>
                   </div>
+
                   <div className="flex items-center gap-2">
                     {classes.filter(other => other.id !== cls.id).length > 0 && (
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Copy from:</span>
+                      <div className="flex items-center gap-1 text-xs text-[#243b4a]">
+                        <Copy size={12} className="text-[#243b4a]/50" />
+                        <span className="font-bold">Copy:</span>
                         <select
                           onChange={(e) => {
                             const val = e.target.value;
                             if (val) {
                               copySubjects(val, cls.id);
-                              e.target.value = ""; // Reset
+                              e.target.value = "";
                             }
                           }}
-                          className="bg-white border border-slate-200 text-slate-700 text-xs rounded-lg px-2 py-1 pr-6 focus:outline-none focus:border-blue-500"
+                          className="bg-white border border-[#243b4a]/20 rounded-md text-xs py-1 px-2 font-bold"
                         >
-                          <option value="">— select class —</option>
+                          <option value="">Select class...</option>
                           {classes
                             .filter(other => other.id !== cls.id)
                             .map(other => (
@@ -207,128 +173,91 @@ export default function Step2_Subjects({ classes, subjects, setSubjects, onNext,
                     )}
                     <button
                       onClick={() => addSubject(cls.id)}
-                      className="btn-secondary text-xs px-3 py-1.5"
+                      className="btn-secondary text-xs py-1 px-2.5 font-bold"
                     >
-                      <Plus size={12} /> Add Subject
+                      <Plus size={13} /> Add Subject
                     </button>
                   </div>
                 </div>
 
-                {/* Subject rows */}
+                {/* Subject table */}
                 {classSubjects.length === 0 ? (
-                  <div className="px-4 py-6 text-center text-slate-400 text-xs italic bg-white">
-                    No subjects yet — click "Add Subject" above.
+                  <div className="px-4 py-6 text-center text-[#243b4a]/40 text-xs italic font-medium">
+                    No subjects added for {cls.label} yet.
                   </div>
                 ) : (
-                  <div className="divide-y divide-slate-100 bg-white">
-                    {/* Column headers */}
-                    <div className="grid grid-cols-12 gap-3 px-4 py-2 bg-slate-50 border-b border-slate-100">
-                      <div className="col-span-5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Subject Name</div>
-                      <div className="col-span-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Type</div>
-                      <div className="col-span-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">Hrs / Week</div>
+                  <div className="divide-y divide-[#243b4a]/10">
+                    <div className="grid grid-cols-12 gap-3 px-4 py-2 bg-[#243b4a]/5 text-[11px] font-extrabold text-[#243b4a]">
+                      <div className="col-span-5">Subject Name</div>
+                      <div className="col-span-3">Type</div>
+                      <div className="col-span-3 text-center">Hrs / Week</div>
                       <div className="col-span-1" />
                     </div>
 
                     {classSubjects.map(subj => {
                       const isMainDup = isDuplicate(cls.id, subj.name);
-                      const isMainEmpty = !subj.name.trim();
-                      const isRowError = isMainDup || isMainEmpty || (subj.isElective && (subj.electiveSubjects || []).some(n => !n.trim() || isDuplicate(cls.id, n)));
 
                       return (
-                        <div key={subj.id} className={`
-                          grid grid-cols-12 gap-3 items-start px-4 py-3 group.row
-                          hover:bg-slate-50/40 transition-colors
-                          ${isRowError ? 'bg-red-50/30' : ''}
-                        `}>
+                        <div key={subj.id} className="grid grid-cols-12 gap-3 items-start px-4 py-2.5 group hover:bg-[#eff2f5]">
                           {/* Subject Inputs Column */}
-                          <div className="col-span-5 space-y-2">
-                            {/* Primary Subject */}
-                            <div>
-                              <input
-                                type="text"
-                                value={subj.name}
-                                onChange={e => updateSubject(subj.id, 'name', e.target.value)}
-                                placeholder="Type subject name…"
-                                autoComplete="off"
-                                className={`
-                                  input-field text-sm py-2
-                                  ${isMainDup ? 'border-red-300 focus:border-red-500 focus:ring-red-500/10' : ''}
-                                  ${isMainEmpty && !isMainDup ? 'border-amber-300' : ''}
-                                `}
-                              />
-                              {isMainDup && (
-                                <p className="text-xs text-red-500 mt-1 flex items-center gap-1 font-semibold pl-1">
-                                  <AlertCircle size={11} /> Duplicate in this class
-                                </p>
-                              )}
-                            </div>
+                          <div className="col-span-5 space-y-1.5">
+                            <input
+                              type="text"
+                              value={subj.name}
+                              onChange={e => updateSubject(subj.id, 'name', e.target.value)}
+                              placeholder="e.g. Mathematics"
+                              className={`input-field text-xs py-1.5 font-bold ${isMainDup ? 'border-rose-300' : ''}`}
+                            />
 
                             {/* Nested Elective Subjects */}
                             {subj.isElective && (
-                              <div className="space-y-2 mt-2">
-                                {(subj.electiveSubjects || []).map((elName, elIdx) => {
-                                  const isElDup = isDuplicate(cls.id, elName);
-                                  const isElEmpty = !elName.trim();
-                                  return (
-                                    <div key={elIdx} className="space-y-1">
-                                      <div className="flex items-center gap-2">
-                                        <input
-                                          type="text"
-                                          value={elName}
-                                          onChange={e => {
-                                            const updated = [...(subj.electiveSubjects || [])];
-                                            updated[elIdx] = e.target.value;
-                                            updateSubject(subj.id, 'electiveSubjects', updated);
-                                          }}
-                                          placeholder={`Elective subject ${elIdx + 2} name…`}
-                                          autoComplete="off"
-                                          className={`
-                                            input-field text-sm py-2 flex-1
-                                            ${isElDup ? 'border-red-300 focus:border-red-500 focus:ring-red-500/10' : ''}
-                                            ${isElEmpty && !isElDup ? 'border-amber-300' : ''}
-                                          `}
-                                        />
-                                        <button
-                                          onClick={() => {
-                                            const updated = (subj.electiveSubjects || []).filter((_, i) => i !== elIdx);
-                                            updateSubject(subj.id, 'electiveSubjects', updated);
-                                          }}
-                                          className="text-xs text-slate-400 hover:text-red-500 p-1 font-bold"
-                                          title="Remove this elective subject"
-                                        >
-                                          &times;
-                                        </button>
-                                      </div>
-                                      {isElDup && (
-                                        <p className="text-xs text-red-500 flex items-center gap-1 font-semibold">
-                                          <AlertCircle size={10} /> Duplicate name
-                                        </p>
-                                      )}
-                                    </div>
-                                  );
-                                })}
+                              <div className="space-y-1 pl-2 border-l-2 border-[#ff732e]">
+                                {(subj.electiveSubjects || []).map((elName, elIdx) => (
+                                  <div key={elIdx} className="flex items-center gap-1.5">
+                                    <input
+                                      type="text"
+                                      value={elName}
+                                      onChange={e => {
+                                        const updated = [...(subj.electiveSubjects || [])];
+                                        updated[elIdx] = e.target.value;
+                                        updateSubject(subj.id, 'electiveSubjects', updated);
+                                      }}
+                                      placeholder={`Elective option ${elIdx + 2}…`}
+                                      className="input-field text-xs py-1 flex-1 font-bold"
+                                    />
+                                    <button
+                                      onClick={() => {
+                                        const updated = (subj.electiveSubjects || []).filter((_, i) => i !== elIdx);
+                                        updateSubject(subj.id, 'electiveSubjects', updated);
+                                      }}
+                                      className="text-xs text-[#243b4a]/50 hover:text-rose-600 px-1 font-bold"
+                                    >
+                                      &times;
+                                    </button>
+                                  </div>
+                                ))}
 
                                 <button
                                   onClick={() => {
                                     const updated = [...(subj.electiveSubjects || []), ''];
                                     updateSubject(subj.id, 'electiveSubjects', updated);
                                   }}
-                                  className="text-[11px] text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1 mt-1"
+                                  className="text-[11px] text-[#ff732e] font-extrabold hover:underline"
                                 >
-                                  + Add Another Elective Subject
+                                  + Add Parallel Elective Option
                                 </button>
                               </div>
                             )}
                           </div>
 
                           {/* Type Column */}
-                          <div className="col-span-3 pt-2.5">
-                            <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 select-none">
+                          <div className="col-span-3 pt-1">
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs font-bold text-[#243b4a] select-none">
                               <input
                                 type="checkbox"
                                 checked={!!subj.isElective}
                                 onChange={e => updateSubject(subj.id, 'isElective', e.target.checked)}
-                                className="rounded border-slate-300 bg-white text-blue-600 focus:ring-blue-500/20 focus:ring-offset-white"
+                                className="rounded border-[#243b4a]/30 text-[#ff732e] focus:ring-[#ff732e]/20"
                               />
                               <span>Elective Group</span>
                             </label>
@@ -342,21 +271,15 @@ export default function Step2_Subjects({ classes, subjects, setSubjects, onNext,
                               max={15}
                               value={subj.hoursPerWeek}
                               onChange={e => updateSubject(subj.id, 'hoursPerWeek', e.target.value)}
-                              className="input-field text-sm py-2 text-center font-bold"
+                              className="input-field text-xs py-1.5 text-center font-black"
                             />
-                            {subj.isElective && (
-                              <p className="text-[9px] text-slate-400 text-center mt-1 font-semibold uppercase tracking-wider">
-                                Shared hours
-                              </p>
-                            )}
                           </div>
 
                           {/* Delete Column */}
-                          <div className="col-span-1 flex justify-center pt-2">
+                          <div className="col-span-1 flex justify-center pt-1">
                             <button
                               onClick={() => removeSubject(subj.id)}
-                              className="p-1 rounded-lg text-slate-300 hover:text-red-500
-                                         hover:bg-slate-50 transition-all duration-150"
+                              className="btn-danger p-1 opacity-0 group-hover:opacity-100"
                               title="Remove subject"
                             >
                               <Trash2 size={14} />
@@ -375,21 +298,15 @@ export default function Step2_Subjects({ classes, subjects, setSubjects, onNext,
 
       {/* Global validation hints */}
       {hasGlobalDuplicates && (
-        <div className="flex items-center gap-2 text-red-600 bg-red-50 border border-red-100 px-4 py-2.5 rounded-xl text-xs font-semibold">
-          <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
+        <div className="flex items-center gap-2 text-rose-700 bg-rose-50 border border-rose-200 px-3.5 py-2.5 rounded-lg text-xs font-bold">
+          <AlertCircle size={15} className="text-rose-500 flex-shrink-0" />
           Remove duplicate subject names within the same class before continuing.
         </div>
       )}
       {!hasGlobalDuplicates && hasEmptyNames && (
-        <div className="flex items-center gap-2 text-amber-600 bg-amber-50 border border-amber-100 px-4 py-2.5 rounded-xl text-xs font-semibold">
-          <AlertCircle size={14} className="text-amber-500 flex-shrink-0" />
-          Fill in all subject names (including nested electives) before continuing.
-        </div>
-      )}
-      {subjects.length === 0 && classes.length > 0 && (
-        <div className="flex items-center gap-2 text-amber-600 bg-amber-50 border border-amber-100 px-4 py-2.5 rounded-xl text-xs font-semibold">
-          <AlertCircle size={14} className="text-amber-500 flex-shrink-0" />
-          Add at least one subject to continue.
+        <div className="flex items-center gap-2 text-amber-700 bg-amber-50 border border-amber-200 px-3.5 py-2.5 rounded-lg text-xs font-bold">
+          <AlertCircle size={15} className="text-amber-500 flex-shrink-0" />
+          Fill in all subject names before continuing.
         </div>
       )}
 

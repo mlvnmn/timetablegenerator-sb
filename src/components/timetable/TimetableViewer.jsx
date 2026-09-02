@@ -1,20 +1,10 @@
-import React, { useState, useRef, createRef } from 'react';
+import React, { useState } from 'react';
 import TimetableGrid from './TimetableGrid';
-import { Download, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { downloadZip } from '../../utils/exportUtils';
+import { ChevronLeft, ChevronRight, FileSpreadsheet } from 'lucide-react';
+import { exportToExcel } from '../../utils/excelUtils';
 
 export default function TimetableViewer({ classes, subjects, teachers, timetable, addToast }) {
   const [activeClassId, setActiveClassId] = useState(classes[0]?.id || '');
-  const [downloading, setDownloading] = useState(false);
-  const [progress, setProgress] = useState(0);
-
-  // Create a stable ref for each class
-  const gridRefs = useRef({});
-  classes.forEach(cls => {
-    if (!gridRefs.current[cls.id]) {
-      gridRefs.current[cls.id] = createRef();
-    }
-  });
 
   const activeClass = classes.find(c => c.id === activeClassId);
   const activeIdx   = classes.findIndex(c => c.id === activeClassId);
@@ -26,40 +16,29 @@ export default function TimetableViewer({ classes, subjects, teachers, timetable
     if (activeIdx < classes.length - 1) setActiveClassId(classes[activeIdx + 1].id);
   };
 
-  const handleDownload = async () => {
-    setDownloading(true);
-    setProgress(0);
+  const handleDownloadExcel = () => {
     try {
-      await downloadZip({
-        classes,
-        subjects,
-        teachers,
-        timetable,
-        gridRefs: gridRefs.current,
-        onProgress: setProgress,
-      });
-      addToast('ZIP downloaded successfully!', 'success');
+      exportToExcel({ classes, subjects, teachers, timetable });
+      addToast('Excel workbook exported successfully!', 'success');
     } catch (err) {
-      addToast(`Download failed: ${err.message}`, 'error');
-    } finally {
-      setDownloading(false);
+      addToast(`Excel export failed: ${err.message}`, 'error');
     }
   };
 
   return (
-    <div className="space-y-4">
-      {/* Tab Bar + Download */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        <div className="flex items-center gap-1.5 flex-1 overflow-x-auto pb-1">
+    <div className="space-y-3">
+      {/* Tab Bar + Export Excel Button */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-[#243b4a]/15 shadow-2xs">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
           {classes.map(cls => (
             <button
               key={cls.id}
               onClick={() => setActiveClassId(cls.id)}
               className={`
-                flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all duration-150
+                px-3 py-1.5 rounded-lg text-xs font-black transition-colors flex-shrink-0
                 ${activeClassId === cls.id
-                  ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
-                  : 'bg-white border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300'
+                  ? 'bg-[#243b4a] text-white shadow-xs'
+                  : 'text-[#243b4a] hover:bg-[#eff2f5]'
                 }
               `}
             >
@@ -68,87 +47,48 @@ export default function TimetableViewer({ classes, subjects, teachers, timetable
           ))}
         </div>
 
-        {/* Download ZIP button */}
-        <button
-          onClick={handleDownload}
-          disabled={downloading}
-          className="btn-success flex-shrink-0"
-        >
-          {downloading ? (
-            <>
-              <Loader2 size={16} className="animate-spin" />
-              {progress}%
-            </>
-          ) : (
-            <>
-              <Download size={16} />
-              Download ZIP
-            </>
-          )}
-        </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={handleDownloadExcel}
+            className="btn-primary flex items-center gap-1.5 text-xs py-1.5 px-3 font-extrabold shadow-xs"
+            title="Download multi-sheet Excel (.xlsx) file"
+          >
+            <FileSpreadsheet size={14} />
+            Export Excel
+          </button>
+        </div>
       </div>
 
-      {/* Progress bar */}
-      {downloading && (
-        <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden shadow-2xs">
-          <div
-            className="h-full bg-gradient-to-r from-blue-600 to-emerald-500 transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      )}
-
-      {/* Navigation arrows + class label */}
-      <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200">
+      {/* Navigation arrows + active class header bar */}
+      <div className="flex items-center justify-between gap-3 bg-white px-3 py-2 rounded-xl border border-[#243b4a]/15 shadow-2xs">
         <button
           onClick={goPrev}
           disabled={activeIdx === 0}
-          className="btn-secondary px-3 py-2 disabled:opacity-30"
+          className="btn-secondary px-2.5 py-1 disabled:opacity-30 text-xs font-bold"
         >
-          <ChevronLeft size={16} />
+          <ChevronLeft size={14} />
         </button>
-        <div className="flex-1 text-center font-bold">
-          <span className="text-sm text-slate-800">{activeClass?.label}</span>
-          <span className="text-xs text-slate-400 ml-2 font-medium">({activeIdx + 1} of {classes.length})</span>
+        <div className="text-center font-bold">
+          <span className="text-xs font-black text-[#243b4a]">{activeClass?.label}</span>
+          <span className="text-xs text-[#243b4a]/50 ml-2 font-bold">({activeIdx + 1} of {classes.length})</span>
         </div>
         <button
           onClick={goNext}
           disabled={activeIdx === classes.length - 1}
-          className="btn-secondary px-3 py-2 disabled:opacity-30"
+          className="btn-secondary px-2.5 py-1 disabled:opacity-30 text-xs font-bold"
         >
-          <ChevronRight size={16} />
+          <ChevronRight size={14} />
         </button>
       </div>
 
-      {/* Grid — all mounted for html2canvas, non-active shifted off-screen */}
-      <div className="relative overflow-hidden" style={{ minHeight: '300px' }}>
-        {classes.map(cls => {
-          const isActive = cls.id === activeClassId;
-          return (
-            <div
-              key={cls.id}
-              style={
-                isActive
-                  ? { position: 'relative' }
-                  : {
-                      position: 'absolute',
-                      top: 0,
-                      left: '-9999px',
-                      visibility: 'hidden',   // hides from user but NOT from html2canvas
-                      pointerEvents: 'none',
-                    }
-              }
-            >
-              <TimetableGrid
-                cls={cls}
-                timetableData={timetable[cls.id]}
-                teachers={teachers}
-                gridRef={gridRefs.current[cls.id]}
-              />
-            </div>
-          );
-        })}
-      </div>
+      {/* Active Class Grid View */}
+      {activeClass && (
+        <TimetableGrid
+          cls={activeClass}
+          timetableData={timetable[activeClass.id]}
+          teachers={teachers}
+        />
+      )}
     </div>
   );
 }

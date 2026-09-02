@@ -1,66 +1,125 @@
-/**
- * Parse a timetable_data.json file and return { classes, subjects, teachers, timetable }.
- * Throws if the file is invalid.
- */
-export function parseImportFile(fileContent) {
-  let data;
-  try {
-    data = JSON.parse(fileContent);
-  } catch {
-    throw new Error('Invalid JSON file. Please upload a valid timetable_data.json.');
-  }
-
-  if (!data.classes || !Array.isArray(data.classes)) {
-    throw new Error('JSON missing "classes" array.');
-  }
-  if (!data.teachers || !Array.isArray(data.teachers)) {
-    throw new Error('JSON missing "teachers" array.');
-  }
-
-  // Validate & normalise each class entry
-  const classes = data.classes.map((c, i) => {
-    if (!c.id)                           throw new Error(`Class at index ${i} is missing an "id".`);
-    if (!c.label || !c.label.trim())     throw new Error(`Class "${c.id}" is missing a "label".`);
-    const ppd = Number(c.periodsPerDay);
-    if (!ppd || ppd < 1)                 throw new Error(`Class "${c.id}" has an invalid "periodsPerDay" value.`);
-    return { id: c.id, label: c.label.trim(), periodsPerDay: ppd };
-  });
-
-  // Normalise subjects (optional — older exports may not have this)
-  const subjects = Array.isArray(data.subjects)
-    ? data.subjects.map((s, i) => {
-        if (!s.id)      throw new Error(`Subject at index ${i} is missing an "id".`);
-        if (!s.classId) throw new Error(`Subject "${s.id}" is missing a "classId".`);
-        if (!s.name)    throw new Error(`Subject "${s.id}" is missing a "name".`);
-        return {
-          id:           s.id,
-          classId:      s.classId,
-          name:         s.name.trim(),
-          hoursPerWeek: Math.max(1, Number(s.hoursPerWeek) || 3),
-          isElective:   !!s.isElective,
-          electiveSubjects: Array.isArray(s.electiveSubjects)
-            ? s.electiveSubjects.map(name => name.trim())
-            : [],
-        };
-      })
-    : [];
-
-  return {
-    classes,
-    subjects,
-    teachers:  data.teachers,
-    timetable: data.timetable || null,
-  };
-}
+import { parseExcelImport } from './excelUtils';
 
 /**
- * Read a File object as text and return a Promise<string>.
+ * Read a File object as ArrayBuffer for Excel file parsing.
  */
-export function readFileAsText(file) {
+export function readFileAsArrayBuffer(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = e => resolve(e.target.result);
-    reader.onerror = () => reject(new Error('Failed to read file.'));
-    reader.readAsText(file);
+    reader.onerror = () => reject(new Error('Failed to read file as ArrayBuffer.'));
+    reader.readAsArrayBuffer(file);
   });
+}
+
+/**
+ * Handle single Excel file import (.xlsx / .xls / .csv).
+ */
+export async function processImportFile(file) {
+  const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv');
+
+  if (!isExcel) {
+    throw new Error(`Invalid file "${file.name}". Please upload an Excel spreadsheet (.xlsx, .xls, or .csv).`);
+  }
+
+  const buffer = await readFileAsArrayBuffer(file);
+  return parseExcelImport(buffer);
+}
+
+/**
+ * Process multiple Excel files simultaneously and merge their data into a single unified config.
+ */
+export async function processMultipleImportFiles(files) {
+  const fileArray = Array.from(files || []);
+  if (fileArray.length === 0) return { classes: [], subjects: [], teachers: [], timetable: null };
+
+  const parsedConfigs = await Promise.all(
+    fileArray.map(file => processImportFile(file))
+  );
+
+  return mergeImportedConfigs(parsedConfigs);
+}
+
+/**
+ * Merge an array of parsed configurations into one unified dataset.
+ */
+export function mergeImportedConfigs(configs) {
+  const mergedClassesMap = {};
+  const mergedSubjectsMap = {};
+  const mergedTeachersMap = {};
+  let mergedTimetable = null;
+
+  configs.forEach(cfg => {
+    // 1. Merge Classes
+    (cfg.classes || []).forEach(c => {
+      const key = c.label.trim().toLowerCase();
+      if (!mergedClassesMap[key]) {
+        mergedClassesMap[key] = { ...c };
+      }
+    });
+
+    // Lookup table for resolving class labels & IDs across files
+    const classIdLookup = {};
+    Object.values(mergedClassesMap).forEach(c => {
+      classIdLookup[c.label.trim().toLowerCase()] = c.id;
+      classIdLookup[c.id] = c.id;
+    });
+
+    // 2. Merge Subjects
+    (cfg.subjects || []).forEach(s => {
+      const targetClassId = classIdLookup[s.classId] || s.classId;
+      const key = `${s.name.trim().toLowerCase()}::${targetClassId}`;
+      if (!mergedSubjectsMap[key]) {
+        mergedSubjectsMap[key] = { ...s, classId: targetClassId };
+      }
+    });
+
+    // 3. Merge Teachers & Workloads
+    (cfg.teachers || []).forEach(t => {
+      const key = t.name.trim().toLowerCase();
+      if (!mergedTeachersMap[key]) {
+        mergedTeachersMap[key] = {
+          id: t.id || `t_${key.replace(/\s+/g, '_')}`,
+          name: t.name.trim(),
+          subjects: [],
+          blockedSlots: []
+        };
+      }
+
+      // Merge teacher subject assignments
+      (t.subjects || []).forEach(subj => {
+        const targetClassId = classIdLookup[subj.classId] || subj.classId;
+        const exists = mergedTeachersMap[key].subjects.some(
+          existing => existing.subject.toLowerCase() === subj.subject.toLowerCase() && existing.classId === targetClassId
+        );
+        if (!exists) {
+          mergedTeachersMap[key].subjects.push({
+            ...subj,
+            classId: targetClassId
+          });
+        }
+      });
+
+      // Merge blocked availability slots
+      (t.blockedSlots || []).forEach(slot => {
+        const exists = mergedTeachersMap[key].blockedSlots.some(
+          b => b.day === slot.day && b.period === slot.period
+        );
+        if (!exists) {
+          mergedTeachersMap[key].blockedSlots.push(slot);
+        }
+      });
+    });
+
+    if (cfg.timetable) {
+      mergedTimetable = cfg.timetable;
+    }
+  });
+
+  return {
+    classes: Object.values(mergedClassesMap),
+    subjects: Object.values(mergedSubjectsMap),
+    teachers: Object.values(mergedTeachersMap),
+    timetable: mergedTimetable
+  };
 }

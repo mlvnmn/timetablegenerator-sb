@@ -3,17 +3,17 @@ import { Check, Layers, BookOpen, Users, Clock, Zap } from 'lucide-react';
 
 const STEPS = [
   { id: 1, label: 'Classes',     desc: 'Configure classes',      icon: Layers },
-  { id: 2, label: 'Subjects',    desc: 'Define subjects',        icon: BookOpen },
-  { id: 3, label: 'Teachers',    desc: 'Add staff & assign',     icon: Users },
-  { id: 4, label: 'Constraints', desc: 'Set blocked slots',      icon: Clock },
-  { id: 5, label: 'Generate',    desc: 'Build & view schedule',  icon: Zap },
+  { id: 2, label: 'Subjects',    desc: 'Define workloads',       icon: BookOpen },
+  { id: 3, label: 'Teachers',    desc: 'Staff assignments',      icon: Users },
+  { id: 4, label: 'Constraints', desc: 'Blocked timeslots',     icon: Clock },
+  { id: 5, label: 'Generate',    desc: 'Build schedule',         icon: Zap },
 ];
 
 export default function StepIndicator({ currentStep, onStepClick, completedSteps }) {
   return (
-    <div>
+    <div className="space-y-1">
       {/* ── Desktop Vertical Step List ───────────────────────────────────── */}
-      <div className="hidden md:flex flex-col gap-1.5 w-full">
+      <div className="hidden md:flex flex-col gap-1 w-full">
         {STEPS.map((step) => {
           const isDone   = completedSteps.includes(step.id);
           const isActive = currentStep === step.id;
@@ -26,38 +26,41 @@ export default function StepIndicator({ currentStep, onStepClick, completedSteps
               onClick={() => canClick && onStepClick(step.id)}
               disabled={!canClick}
               className={`
-                w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 text-left group
+                w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all text-left text-xs font-extrabold
                 ${isActive
-                  ? 'bg-slate-900 text-white font-semibold shadow-xs'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50 disabled:hover:bg-transparent'
+                  ? 'bg-[#ff732e] text-white shadow-md'
+                  : isDone
+                  ? 'text-white bg-white/10 hover:bg-white/20'
+                  : canClick
+                  ? 'text-white/90 hover:text-white hover:bg-white/10'
+                  : 'text-white/60 hover:text-white disabled:opacity-60 disabled:hover:bg-transparent cursor-not-allowed'
                 }
               `}
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className={`
-                  w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 border transition-all duration-150
+                  w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors
                   ${isActive
-                    ? 'bg-blue-600 border-blue-500 text-white shadow-xs'
+                    ? 'bg-black/20 text-white'
                     : isDone
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-600'
-                    : 'bg-slate-50 border-slate-200 text-slate-400 group-hover:border-slate-300'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-white/10 text-white/90'
                   }
                 `}>
                   {isDone && !isActive ? <Check size={14} strokeWidth={3} /> : <StepIcon size={14} />}
                 </div>
-                <div className="truncate">
-                  <div className="text-xs font-semibold leading-tight">{step.label}</div>
-                  <div className={`text-[10px] truncate leading-tight mt-0.5 ${isActive ? 'text-slate-400' : 'text-slate-400'}`}>
-                    {step.desc}
-                  </div>
-                </div>
+                <span className="truncate">{step.label}</span>
               </div>
+
+              {isDone && !isActive && (
+                <span className="w-2 h-2 rounded-full bg-[#ff732e] flex-shrink-0" />
+              )}
             </button>
           );
         })}
       </div>
 
-      {/* ── Mobile Horizontal Stepper ───────────────────────────────────── */}
+      {/* ── Mobile Stepper ───────────────────────────────────── */}
       <div className="flex md:hidden items-center justify-center gap-1.5 flex-wrap">
         {STEPS.map((step, idx) => {
           const isDone   = completedSteps.includes(step.id);
@@ -71,20 +74,20 @@ export default function StepIndicator({ currentStep, onStepClick, completedSteps
                 onClick={() => canClick && onStepClick(step.id)}
                 disabled={!canClick}
                 className={`
-                  flex items-center justify-center w-8 h-8 rounded-lg border transition-all duration-150
+                  flex items-center justify-center w-8 h-8 rounded-lg transition-all text-xs font-extrabold
                   ${isActive
-                    ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
+                    ? 'bg-[#ff732e] text-white shadow-sm'
                     : isDone
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-600'
-                    : 'bg-white border-slate-200 text-slate-400 disabled:opacity-50'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-white/10 text-white/80 disabled:opacity-50'
                   }
                 `}
                 title={step.label}
               >
-                {isDone && !isActive ? <Check size={14} strokeWidth={3} /> : <StepIcon size={14} />}
+                {isDone && !isActive ? <Check size={13} strokeWidth={3} /> : <StepIcon size={13} />}
               </button>
               {idx < STEPS.length - 1 && (
-                <div className="w-2.5 h-[1px] bg-slate-200" />
+                <div className="w-2 h-[1px] bg-white/30" />
               )}
             </React.Fragment>
           );
