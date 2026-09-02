@@ -278,6 +278,53 @@ export function generateTimetable(classes, teachers) {
     }
   }
 
+  // ── 4. 100% Full Fill Pass: Fill every remaining empty slot across all classes ─────────────
+  classes.forEach(cls => {
+    const classAssignments = assignments.filter(a => a.classId === cls.id);
+
+    DAYS.forEach((_, dayIndex) => {
+      for (let period = 0; period < cls.periodsPerDay; period++) {
+        if (timetable[cls.id][dayIndex][period] !== null) continue;
+
+        // Find available candidate teachers for this class who are globally free at (dayIndex, period)
+        const freeCandidates = classAssignments.filter(asg => {
+          return !teacherBusy[asg.teacherId][dayIndex][period];
+        });
+
+        if (freeCandidates.length > 0) {
+          const daySlots = timetable[cls.id][dayIndex].filter(Boolean);
+          const getCountOnDay = (asg) => daySlots.filter(s => s.teacherId === asg.teacherId && s.subject === asg.subject).length;
+
+          // Pick candidate with lowest occurrences on this day to distribute subjects evenly
+          freeCandidates.sort((a, b) => getCountOnDay(a) - getCountOnDay(b));
+          const best = freeCandidates[0];
+
+          timetable[cls.id][dayIndex][period] = {
+            teacherId: best.teacherId,
+            teacherName: best.teacherName,
+            subject: best.subject,
+          };
+          teacherBusy[best.teacherId][dayIndex][period] = true;
+        } else if (classAssignments.length > 0) {
+          // If all assigned teachers are busy globally, assign self-study / revision slot
+          const defaultSubject = classAssignments[0].subject;
+          const defaultTeacherName = classAssignments[0].teacherName;
+          timetable[cls.id][dayIndex][period] = {
+            teacherId: 'sys_revision',
+            teacherName: defaultTeacherName,
+            subject: `${defaultSubject} (Self-Study)`,
+          };
+        } else {
+          timetable[cls.id][dayIndex][period] = {
+            teacherId: 'sys_library',
+            teacherName: 'Faculty In-Charge',
+            subject: 'Self-Study / Library',
+          };
+        }
+      }
+    });
+  });
+
   // Convert internal timetable format to output format
   const output = {};
   classes.forEach(cls => {

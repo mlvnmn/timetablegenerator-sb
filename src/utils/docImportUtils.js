@@ -142,13 +142,17 @@ function parseTableAsConfig(tableRows) {
     let clsName = '';
     let subjectName = '';
     let hours = 3;
+    let theoryHours = 0;
+    let labHours = 0;
 
     // Case A: 7+ column row -> [NO, FACULTY, CLASS, SUBJECT, THEORY, LAB, TOTAL]
     if (row.length >= 7) {
       if (row[1] && isNaN(Number(row[1]))) currentTeacher = row[1].trim();
       clsName = row[2];
       subjectName = row[3];
-      hours = Number(row[6]) || Number(row[4]) || 3;
+      theoryHours = Number(row[4]) || 0;
+      labHours = Number(row[5]) || 0;
+      hours = Number(row[6]) || (theoryHours + labHours) || 3;
     }
     // Case B: 6-column row -> [FACULTY/NO, CLASS, SUBJECT, THEORY, LAB, TOTAL]
     else if (row.length === 6) {
@@ -156,23 +160,30 @@ function parseTableAsConfig(tableRows) {
         currentTeacher = row[0].trim();
         clsName = row[1];
         subjectName = row[2];
-        hours = Number(row[5]) || Number(row[3]) || 3;
+        theoryHours = Number(row[3]) || 0;
+        labHours = Number(row[4]) || 0;
+        hours = Number(row[5]) || (theoryHours + labHours) || 3;
       } else {
         clsName = row[1];
         subjectName = row[2];
-        hours = Number(row[5]) || Number(row[3]) || 3;
+        theoryHours = Number(row[3]) || 0;
+        labHours = Number(row[4]) || 0;
+        hours = Number(row[5]) || (theoryHours + labHours) || 3;
       }
     }
     // Case C: 5-column row -> [CLASS, SUBJECT, THEORY, LAB, TOTAL]
     else if (row.length === 5) {
       clsName = row[0];
       subjectName = row[1];
-      hours = Number(row[4]) || Number(row[2]) || 3;
+      theoryHours = Number(row[2]) || 0;
+      labHours = Number(row[3]) || 0;
+      hours = Number(row[4]) || (theoryHours + labHours) || 3;
     }
     // Case D: 4-column row -> [CLASS, SUBJECT, THEORY, TOTAL]
     else if (row.length === 4) {
       clsName = row[0];
       subjectName = row[1];
+      theoryHours = Number(row[2]) || 0;
       hours = Number(row[3]) || Number(row[2]) || 3;
     }
     // Case E: 3-column row -> [CLASS, SUBJECT, HOURS]
@@ -218,6 +229,8 @@ function parseTableAsConfig(tableRows) {
         classId,
         subject: subjectName.trim(),
         hoursPerWeek: isNaN(hours) || hours <= 0 ? 3 : hours,
+        theoryHours: isNaN(theoryHours) ? 0 : theoryHours,
+        labHours: isNaN(labHours) ? 0 : labHours,
         isElective: subjectName.toLowerCase().includes('elective'),
         electiveGroup: ''
       });

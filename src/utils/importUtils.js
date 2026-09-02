@@ -115,6 +115,8 @@ export function mergeImportedConfigs(configs) {
             classId: targetClassId,
             name: subjName,
             hoursPerWeek: Number(subj.hoursPerWeek) || 3,
+            theoryHours: Number(subj.theoryHours) || 0,
+            labHours: Number(subj.labHours) || 0,
             isElective: !!subj.isElective,
             electiveSubjects: []
           };

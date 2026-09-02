@@ -273,6 +273,11 @@ export default function Step2_Subjects({ classes, subjects, setSubjects, onNext,
                               onChange={e => updateSubject(subj.id, 'hoursPerWeek', e.target.value)}
                               className="input-field text-xs py-1.5 text-center font-black"
                             />
+                            {(subj.theoryHours > 0 || subj.labHours > 0) && (
+                              <div className="text-[10px] text-center font-bold text-[#243b4a]/70 mt-1 bg-[#eff2f5] px-1.5 py-0.5 rounded border border-[#243b4a]/10">
+                                Theory: {subj.theoryHours}h · Lab: {subj.labHours}h
+                              </div>
+                            )}
                           </div>
 
                           {/* Delete Column */}
