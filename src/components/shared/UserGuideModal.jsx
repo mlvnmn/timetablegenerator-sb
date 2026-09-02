@@ -105,14 +105,14 @@ export default function UserGuideModal({ isOpen, onClose }) {
             </div>
           </div>
 
-          {/* Excel Pro Tips */}
+          {/* Document & Spreadsheet Pro Tips */}
           <div className="p-3 rounded-lg bg-[#eff2f5] border border-[#243b4a]/10 space-y-1.5">
             <h4 className="text-[11px] font-black text-[#243b4a] uppercase tracking-wider flex items-center gap-1.5">
-              <FileSpreadsheet size={13} className="text-[#ff732e]" /> Excel Offline Workflow
+              <FileSpreadsheet size={13} className="text-[#ff732e]" /> Multi-Format Document Import
             </h4>
             <ul className="space-y-1 text-[#243b4a]/80 font-semibold list-disc list-inside">
-              <li>Click <b>Excel Template</b> in the sidebar to download a sample Excel file to fill out offline.</li>
-              <li>Click <b>Import Excel Config</b> to upload single or multiple Excel files at once — data will be merged automatically.</li>
+              <li>Click <b>Excel Template</b> in the sidebar to download a sample spreadsheet to fill out offline.</li>
+              <li>Click <b>Import Files (Excel/PDF/Word)</b> to upload single or multiple Excel (`.xlsx`), PDF (`.pdf`), or Word (`.docx`) files — data will be merged automatically.</li>
             </ul>
           </div>
 

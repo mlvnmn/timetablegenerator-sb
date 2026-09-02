@@ -1,7 +1,8 @@
 import { parseExcelImport } from './excelUtils';
+import { parsePdfImport, parseDocxImport } from './docImportUtils';
 
 /**
- * Read a File object as ArrayBuffer for Excel file parsing.
+ * Read a File object as ArrayBuffer.
  */
 export function readFileAsArrayBuffer(file) {
   return new Promise((resolve, reject) => {
@@ -13,21 +14,29 @@ export function readFileAsArrayBuffer(file) {
 }
 
 /**
- * Handle single Excel file import (.xlsx / .xls / .csv).
+ * Handle single file import (.xlsx / .xls / .csv / .pdf / .docx / .doc).
  */
 export async function processImportFile(file) {
-  const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv');
+  const fileName = file.name.toLowerCase();
+  const buffer = await readFileAsArrayBuffer(file);
 
-  if (!isExcel) {
-    throw new Error(`Invalid file "${file.name}". Please upload an Excel spreadsheet (.xlsx, .xls, or .csv).`);
+  if (fileName.endsWith('.pdf')) {
+    return parsePdfImport(buffer);
   }
 
-  const buffer = await readFileAsArrayBuffer(file);
-  return parseExcelImport(buffer);
+  if (fileName.endsWith('.docx') || fileName.endsWith('.doc')) {
+    return parseDocxImport(buffer);
+  }
+
+  if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || fileName.endsWith('.csv')) {
+    return parseExcelImport(buffer);
+  }
+
+  throw new Error(`Unsupported file type "${file.name}". Please upload an Excel (.xlsx, .csv), PDF (.pdf), or Word (.docx) document.`);
 }
 
 /**
- * Process multiple Excel files simultaneously and merge their data into a single unified config.
+ * Process multiple files simultaneously (mixing Excel, PDF, Word) and merge their data into a single unified config.
  */
 export async function processMultipleImportFiles(files) {
   const fileArray = Array.from(files || []);

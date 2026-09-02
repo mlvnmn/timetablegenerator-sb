@@ -143,7 +143,7 @@ export default function App() {
             ref={importRef}
             type="file"
             multiple
-            accept=".xlsx, .xls, .csv"
+            accept=".xlsx, .xls, .csv, .pdf, .docx, .doc"
             onChange={handleImport}
             className="hidden"
             id="sidebar-import-file"
@@ -151,10 +151,10 @@ export default function App() {
           <button
             onClick={() => importRef.current?.click()}
             className="w-full bg-[#ff732e] hover:bg-[#e8611d] text-white font-bold text-xs py-2 rounded-lg justify-center gap-1.5 flex items-center transition-colors shadow-xs"
-            title="Upload Excel (.xlsx, .xls, .csv) spreadsheet"
+            title="Import Excel, PDF (.pdf), or Word (.docx) documents"
           >
             <Upload size={14} />
-            Import Excel
+            Import Files (Excel/PDF/Word)
           </button>
           <button
             onClick={downloadExcelTemplate}
