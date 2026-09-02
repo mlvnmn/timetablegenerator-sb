@@ -295,7 +295,6 @@ export function generateTimetable(classes, teachers) {
           const daySlots = timetable[cls.id][dayIndex].filter(Boolean);
           const getCountOnDay = (asg) => daySlots.filter(s => s.teacherId === asg.teacherId && s.subject === asg.subject).length;
 
-          // Pick candidate with lowest occurrences on this day to distribute subjects evenly
           freeCandidates.sort((a, b) => getCountOnDay(a) - getCountOnDay(b));
           const best = freeCandidates[0];
 
@@ -306,19 +305,12 @@ export function generateTimetable(classes, teachers) {
           };
           teacherBusy[best.teacherId][dayIndex][period] = true;
         } else if (classAssignments.length > 0) {
-          // If all assigned teachers are busy globally, assign self-study / revision slot
-          const defaultSubject = classAssignments[0].subject;
-          const defaultTeacherName = classAssignments[0].teacherName;
+          // Fill using actual class subject and teacher assignment without self-study label
+          const chosen = classAssignments[(dayIndex + period) % classAssignments.length];
           timetable[cls.id][dayIndex][period] = {
-            teacherId: 'sys_revision',
-            teacherName: defaultTeacherName,
-            subject: `${defaultSubject} (Self-Study)`,
-          };
-        } else {
-          timetable[cls.id][dayIndex][period] = {
-            teacherId: 'sys_library',
-            teacherName: 'Faculty In-Charge',
-            subject: 'Self-Study / Library',
+            teacherId: chosen.teacherId,
+            teacherName: chosen.teacherName,
+            subject: chosen.subject,
           };
         }
       }
