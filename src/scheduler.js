@@ -278,45 +278,6 @@ export function generateTimetable(classes, teachers) {
     }
   }
 
-  // ── 4. 100% Full Fill Pass: Fill every remaining empty slot across all classes ─────────────
-  classes.forEach(cls => {
-    const classAssignments = assignments.filter(a => a.classId === cls.id);
-
-    DAYS.forEach((_, dayIndex) => {
-      for (let period = 0; period < cls.periodsPerDay; period++) {
-        if (timetable[cls.id][dayIndex][period] !== null) continue;
-
-        // Find available candidate teachers for this class who are globally free at (dayIndex, period)
-        const freeCandidates = classAssignments.filter(asg => {
-          return !teacherBusy[asg.teacherId][dayIndex][period];
-        });
-
-        if (freeCandidates.length > 0) {
-          const daySlots = timetable[cls.id][dayIndex].filter(Boolean);
-          const getCountOnDay = (asg) => daySlots.filter(s => s.teacherId === asg.teacherId && s.subject === asg.subject).length;
-
-          freeCandidates.sort((a, b) => getCountOnDay(a) - getCountOnDay(b));
-          const best = freeCandidates[0];
-
-          timetable[cls.id][dayIndex][period] = {
-            teacherId: best.teacherId,
-            teacherName: best.teacherName,
-            subject: best.subject,
-          };
-          teacherBusy[best.teacherId][dayIndex][period] = true;
-        } else if (classAssignments.length > 0) {
-          // Fill using actual class subject and teacher assignment without self-study label
-          const chosen = classAssignments[(dayIndex + period) % classAssignments.length];
-          timetable[cls.id][dayIndex][period] = {
-            teacherId: chosen.teacherId,
-            teacherName: chosen.teacherName,
-            subject: chosen.subject,
-          };
-        }
-      }
-    });
-  });
-
   // Convert internal timetable format to output format
   const output = {};
   classes.forEach(cls => {
