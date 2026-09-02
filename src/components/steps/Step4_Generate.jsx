@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Zap, AlertTriangle, CheckCircle2, ChevronDown } from 'lucide-react';
 import { generateTimetable } from '../../scheduler';
 import TimetableViewer from '../timetable/TimetableViewer';
+import { calculateSubjectAllocations } from '../../utils/allocationUtils';
 
 export default function Step4_Generate({
   classes, subjects, teachers, timetable, setTimetable, onBack, addToast
@@ -16,6 +17,13 @@ export default function Step4_Generate({
       addToast('Please add at least one teacher before generating.', 'error');
       return;
     }
+
+    const { allocations, errors } = calculateSubjectAllocations(classes, subjects, teachers);
+    if (errors.length > 0) {
+      addToast(`Cannot generate: ${errors[0].message}`, 'error');
+      return;
+    }
+
     setGenerating(true);
     setWarnings([]);
 
@@ -24,7 +32,7 @@ export default function Step4_Generate({
 
     const resolvedTeachers = teachers.map(t => ({
       ...t,
-      subjects: (t.subjects || []).flatMap(a => {
+      subjects: (t.subjects || []).flatMap((a, index) => {
         if (!a.subjectId) return [];
         const parts = a.subjectId.split('::');
         const baseId = parts[0];
@@ -37,10 +45,13 @@ export default function Step4_Generate({
           name = baseSubj.electiveSubjects?.[idx] || '';
         }
 
+        const allocatedHrs = allocations.get(`${t.id}::${index}`) ?? baseSubj.hoursPerWeek;
+        if (allocatedHrs <= 0) return [];
+
         return [{
           classId: a.classId,
           subject: name,
-          hoursPerWeek: baseSubj.hoursPerWeek,
+          hoursPerWeek: allocatedHrs,
           isElective: !!baseSubj.isElective,
           electiveGroup: baseSubj.isElective ? `electiveGroup_${baseSubj.id}` : '',
         }];
