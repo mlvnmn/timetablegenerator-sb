@@ -21,7 +21,6 @@ export async function parsePdfImport(arrayBuffer) {
       const page = await pdf.getPage(i);
       const textContent = await page.getTextContent();
 
-      // Group text items by vertical position (Y coordinate) to reconstruct lines
       const lineMap = new Map();
       textContent.items.forEach(item => {
         const y = Math.round(item.transform[5]);
@@ -31,7 +30,6 @@ export async function parsePdfImport(arrayBuffer) {
         lineMap.get(y).push(item.str);
       });
 
-      // Sort Y coordinates descending (top to bottom of page)
       const sortedYs = Array.from(lineMap.keys()).sort((a, b) => b - a);
       sortedYs.forEach(y => {
         const lineText = lineMap.get(y).join(' ').trim();
@@ -62,7 +60,6 @@ export async function parseDocxImport(arrayBuffer) {
 
     return extractConfigFromTextAndTables(textLines, tableData);
   } catch (err) {
-    // Fallback: try parsing as arrayBuffer Excel/Text format if legacy
     try {
       return parseExcelImport(arrayBuffer);
     } catch {
@@ -92,7 +89,6 @@ function parseHtmlTables(html) {
       let cellMatch;
 
       while ((cellMatch = cellRegex.exec(rowHtml)) !== null) {
-        // Strip HTML tags and clean whitespace
         const text = cellMatch[1].replace(/<[^>]+>/g, '').trim();
         cells.push(text);
       }
@@ -107,7 +103,6 @@ function parseHtmlTables(html) {
  * Combine text lines and table structures into timetable config entities.
  */
 function extractConfigFromTextAndTables(textLines, tables) {
-  // First check if any extracted table contains teacher/subject data
   for (const table of tables) {
     const config = parseTableAsConfig(table);
     if (config.classes.length > 0 || config.teachers.length > 0) {
@@ -115,70 +110,124 @@ function extractConfigFromTextAndTables(textLines, tables) {
     }
   }
 
-  // Fallback to text line parser
   return extractConfigFromTextLines(textLines);
 }
 
 /**
- * Attempt to parse a 2D table array into timetable config entities.
+ * Robust document table parser supporting merged cells (rowspan/colspan),
+ * teacher continuity across rows, and shifted column indices.
  */
 function parseTableAsConfig(tableRows) {
   if (!tableRows || tableRows.length < 2) {
     return { classes: [], subjects: [], teachers: [], timetable: null };
   }
 
-  const header = tableRows[0].map(h => h.toLowerCase());
-  const findIdx = (aliases) => header.findIndex(h => aliases.some(a => h.includes(a)));
+  const extractedClassesMap = {};
+  const extractedTeacherMap = {};
+  let currentTeacher = null;
 
-  const classIdx   = findIdx(['class', 'batch', 'course', 'dept', 'department']);
-  const teacherIdx = findIdx(['teacher', 'faculty', 'staff', 'instructor', 'professor', 'name']);
-  const subjectIdx = findIdx(['subject', 'module', 'course name']);
-  const hoursIdx   = findIdx(['hours', 'period', 'weekly', 'hrs']);
+  for (let r = 0; r < tableRows.length; r++) {
+    const row = tableRows[r];
+    const rowText = row.join(' ').toLowerCase();
 
-  const extractedClasses = new Set();
-  const teacherMap = {};
+    // Skip header rows
+    if (rowText.includes('faculty name') || rowText.includes('teacher name') || rowText.includes('faculty_name')) {
+      continue;
+    }
 
-  for (let i = 1; i < tableRows.length; i++) {
-    const row = tableRows[i];
-    const clsName   = (classIdx >= 0 ? row[classIdx] : '') || 'Default Class';
-    const tName     = (teacherIdx >= 0 ? row[teacherIdx] : '') || `Teacher ${i}`;
-    const subjName  = (subjectIdx >= 0 ? row[subjectIdx] : '') || 'General Subject';
-    const hoursNum  = hoursIdx >= 0 ? parseInt(row[hoursIdx], 10) : 3;
-    const hours     = isNaN(hoursNum) || hoursNum <= 0 ? 3 : hoursNum;
+    // Skip total/summary rows containing only numbers
+    const nonNumCells = row.filter(c => c && isNaN(Number(c)));
+    if (nonNumCells.length === 0) continue;
 
-    if (clsName) extractedClasses.add(clsName);
+    let clsName = '';
+    let subjectName = '';
+    let hours = 3;
 
-    const tKey = tName.trim().toLowerCase();
-    if (!teacherMap[tKey]) {
-      teacherMap[tKey] = {
+    // Case A: 7+ column row -> [NO, FACULTY, CLASS, SUBJECT, THEORY, LAB, TOTAL]
+    if (row.length >= 7) {
+      if (row[1] && isNaN(Number(row[1]))) currentTeacher = row[1].trim();
+      clsName = row[2];
+      subjectName = row[3];
+      hours = Number(row[6]) || Number(row[4]) || 3;
+    }
+    // Case B: 6-column row -> [FACULTY/NO, CLASS, SUBJECT, THEORY, LAB, TOTAL]
+    else if (row.length === 6) {
+      if (row[0] && isNaN(Number(row[0]))) {
+        currentTeacher = row[0].trim();
+        clsName = row[1];
+        subjectName = row[2];
+        hours = Number(row[5]) || Number(row[3]) || 3;
+      } else {
+        clsName = row[1];
+        subjectName = row[2];
+        hours = Number(row[5]) || Number(row[3]) || 3;
+      }
+    }
+    // Case C: 5-column row -> [CLASS, SUBJECT, THEORY, LAB, TOTAL]
+    else if (row.length === 5) {
+      clsName = row[0];
+      subjectName = row[1];
+      hours = Number(row[4]) || Number(row[2]) || 3;
+    }
+    // Case D: 4-column row -> [CLASS, SUBJECT, THEORY, TOTAL]
+    else if (row.length === 4) {
+      clsName = row[0];
+      subjectName = row[1];
+      hours = Number(row[3]) || Number(row[2]) || 3;
+    }
+    // Case E: 3-column row -> [CLASS, SUBJECT, HOURS]
+    else if (row.length === 3) {
+      clsName = row[0];
+      subjectName = row[1];
+      hours = Number(row[2]) || 3;
+    }
+
+    if (!currentTeacher) continue;
+    if (!clsName || !subjectName) continue;
+    if (clsName.toLowerCase() === 'total' || subjectName.toLowerCase() === 'total') continue;
+
+    // Register Class
+    const classId = `cls_${clsName.trim().replace(/\s+/g, '_').toLowerCase()}`;
+    if (!extractedClassesMap[classId]) {
+      extractedClassesMap[classId] = {
+        id: classId,
+        label: clsName.trim(),
+        periodsPerDay: 5
+      };
+    }
+
+    // Register Teacher
+    const tKey = currentTeacher.toLowerCase();
+    if (!extractedTeacherMap[tKey]) {
+      extractedTeacherMap[tKey] = {
         id: `t_${tKey.replace(/\s+/g, '_')}`,
-        name: tName.trim(),
+        name: currentTeacher,
         subjects: [],
         blockedSlots: []
       };
     }
 
-    const classId = `cls_${clsName.trim().replace(/\s+/g, '_')}`;
-    teacherMap[tKey].subjects.push({
-      id: `subj_${i}_${Date.now()}`,
-      classId,
-      subject: subjName.trim(),
-      hoursPerWeek: hours,
-      isElective: false,
-      electiveGroup: ''
-    });
+    // Add assignment if not duplicate
+    const exists = extractedTeacherMap[tKey].subjects.some(
+      s => s.classId === classId && s.subject.toLowerCase() === subjectName.toLowerCase()
+    );
+
+    if (!exists) {
+      extractedTeacherMap[tKey].subjects.push({
+        id: `subj_${r}_${Date.now()}`,
+        classId,
+        subject: subjectName.trim(),
+        hoursPerWeek: isNaN(hours) || hours <= 0 ? 3 : hours,
+        isElective: subjectName.toLowerCase().includes('elective'),
+        electiveGroup: ''
+      });
+    }
   }
 
-  const classes = Array.from(extractedClasses).map(clsName => ({
-    id: `cls_${clsName.trim().replace(/\s+/g, '_')}`,
-    label: clsName.trim(),
-    periodsPerDay: 5
-  }));
-
   return {
-    classes,
+    classes: Object.values(extractedClassesMap),
     subjects: [],
-    teachers: Object.values(teacherMap),
+    teachers: Object.values(extractedTeacherMap),
     timetable: null
   };
 }
