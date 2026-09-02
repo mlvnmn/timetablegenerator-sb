@@ -50,7 +50,8 @@ export async function processMultipleImportFiles(files) {
 }
 
 /**
- * Merge an array of parsed configurations into one unified dataset.
+ * Merge an array of parsed configurations into one unified dataset,
+ * automatically creating master subject entries for all teacher assignments and linking subjectIds.
  */
 export function mergeImportedConfigs(configs) {
   const mergedClassesMap = {};
@@ -74,16 +75,20 @@ export function mergeImportedConfigs(configs) {
       classIdLookup[c.id] = c.id;
     });
 
-    // 2. Merge Subjects
+    // 2. Merge Master Subjects
     (cfg.subjects || []).forEach(s => {
       const targetClassId = classIdLookup[s.classId] || s.classId;
       const key = `${s.name.trim().toLowerCase()}::${targetClassId}`;
       if (!mergedSubjectsMap[key]) {
-        mergedSubjectsMap[key] = { ...s, classId: targetClassId };
+        mergedSubjectsMap[key] = {
+          id: s.id || `sub_${targetClassId}_${s.name.trim().replace(/\s+/g, '_').toLowerCase()}`,
+          ...s,
+          classId: targetClassId
+        };
       }
     });
 
-    // 3. Merge Teachers & Workloads
+    // 3. Merge Teachers & Workloads, and auto-populate master subjects from teacher assignments
     (cfg.teachers || []).forEach(t => {
       const key = t.name.trim().toLowerCase();
       if (!mergedTeachersMap[key]) {
@@ -95,16 +100,36 @@ export function mergeImportedConfigs(configs) {
         };
       }
 
-      // Merge teacher subject assignments
+      // Merge teacher subject assignments & ensure corresponding master subject exists
       (t.subjects || []).forEach(subj => {
         const targetClassId = classIdLookup[subj.classId] || subj.classId;
+        const subjName = (subj.subject || '').trim();
+        if (!subjName) return;
+
+        const subjKey = `${subjName.toLowerCase()}::${targetClassId}`;
+        let masterSubj = mergedSubjectsMap[subjKey];
+
+        if (!masterSubj) {
+          masterSubj = {
+            id: `sub_${targetClassId}_${subjName.replace(/\s+/g, '_').toLowerCase()}`,
+            classId: targetClassId,
+            name: subjName,
+            hoursPerWeek: Number(subj.hoursPerWeek) || 3,
+            isElective: !!subj.isElective,
+            electiveSubjects: []
+          };
+          mergedSubjectsMap[subjKey] = masterSubj;
+        }
+
         const exists = mergedTeachersMap[key].subjects.some(
-          existing => existing.subject.toLowerCase() === subj.subject.toLowerCase() && existing.classId === targetClassId
+          existing => existing.subject.toLowerCase() === subjName.toLowerCase() && existing.classId === targetClassId
         );
         if (!exists) {
           mergedTeachersMap[key].subjects.push({
             ...subj,
-            classId: targetClassId
+            subject: subjName,
+            classId: targetClassId,
+            subjectId: masterSubj.id
           });
         }
       });
