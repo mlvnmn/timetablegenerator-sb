@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import StepIndicator from './components/layout/StepIndicator';
 import Step1_Classes from './components/steps/Step1_Classes';
 import Step2_Subjects from './components/steps/Step2_Subjects';
@@ -10,21 +10,37 @@ import { processMultipleImportFiles } from './utils/importUtils';
 import { downloadExcelTemplate } from './utils/excelUtils';
 import UserGuideModal from './components/shared/UserGuideModal';
 import {
+  STORAGE_KEYS,
+  loadStoredItem,
+  saveStoredItem,
+  clearAllStoredData,
+} from './utils/storageUtils';
+import {
   Calendar, Upload, RotateCcw, FileSpreadsheet, ChevronRight, HelpCircle
 } from 'lucide-react';
 
 let toastIdCounter = 0;
 
 export default function App() {
-  const [currentStep, setCurrentStep]       = useState(1);
-  const [completedSteps, setCompletedSteps] = useState([1]);
-  const [classes,  setClasses]              = useState([]);
-  const [subjects, setSubjects]             = useState([]);
-  const [teachers, setTeachers]             = useState([]);
-  const [timetable, setTimetable]           = useState(null);
+  const [currentStep, setCurrentStep]       = useState(() => loadStoredItem(STORAGE_KEYS.CURRENT_STEP, 1));
+  const [completedSteps, setCompletedSteps] = useState(() => loadStoredItem(STORAGE_KEYS.COMPLETED_STEPS, [1]));
+  const [classes,  setClasses]              = useState(() => loadStoredItem(STORAGE_KEYS.CLASSES, []));
+  const [subjects, setSubjects]             = useState(() => loadStoredItem(STORAGE_KEYS.SUBJECTS, []));
+  const [teachers, setTeachers]             = useState(() => loadStoredItem(STORAGE_KEYS.TEACHERS, []));
+  const [timetable, setTimetable]           = useState(() => loadStoredItem(STORAGE_KEYS.TIMETABLE, null));
   const [toasts, setToasts]                 = useState([]);
   const [showGuide, setShowGuide]           = useState(false);
   const importRef = useRef();
+
+  // ── Auto-save persistence on state change ──────────────────────────────────
+  useEffect(() => {
+    saveStoredItem(STORAGE_KEYS.CLASSES, classes);
+    saveStoredItem(STORAGE_KEYS.SUBJECTS, subjects);
+    saveStoredItem(STORAGE_KEYS.TEACHERS, teachers);
+    saveStoredItem(STORAGE_KEYS.TIMETABLE, timetable);
+    saveStoredItem(STORAGE_KEYS.CURRENT_STEP, currentStep);
+    saveStoredItem(STORAGE_KEYS.COMPLETED_STEPS, completedSteps);
+  }, [classes, subjects, teachers, timetable, currentStep, completedSteps]);
 
   // ── Toast helpers ──────────────────────────────────────────────────────────
   const addToast = useCallback((message, type = 'info') => {
@@ -74,6 +90,7 @@ export default function App() {
 
   const handleReset = () => {
     if (confirm('Reset everything? All classes, subjects, teachers and timetable data will be cleared.')) {
+      clearAllStoredData();
       setClasses([]);
       setSubjects([]);
       setTeachers([]);
@@ -192,11 +209,18 @@ export default function App() {
               {currentStep === 1 && '1. Department Classes'}
               {currentStep === 2 && '2. Subjects Workload'}
               {currentStep === 3 && '3. Teaching Staff & Assignments'}
-              {currentStep === 4 && '4. External Blocked Constraints'}
+              {currentStep === 4 && '4. Staff & Subject Constraints'}
               {currentStep === 5 && '5. Constraint Solver & Generation'}
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            <div
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-[11px] font-bold shadow-3xs cursor-default select-none"
+              title="Auto-Save Enabled: Classes, subjects, teachers, and timetable are automatically preserved across browser refreshes"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Auto-Saved</span>
+            </div>
             <button
               onClick={() => setShowGuide(true)}
               className="text-xs text-[#243b4a] hover:text-[#ff732e] font-bold flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-[#eff2f5] transition-colors"
@@ -238,10 +262,14 @@ export default function App() {
             )}
             {currentStep === 4 && (
               <Step3_Constraints
+                classes={classes}
+                subjects={subjects}
+                setSubjects={setSubjects}
                 teachers={teachers}
                 setTeachers={setTeachers}
                 onNext={nextStep}
                 onBack={prevStep}
+                addToast={addToast}
               />
             )}
             {currentStep === 5 && (

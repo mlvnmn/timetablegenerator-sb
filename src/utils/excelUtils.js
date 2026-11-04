@@ -95,9 +95,15 @@ export function exportToExcel({ classes, subjects, teachers, timetable }) {
           const details = (slot.assignments || [])
             .map(a => `${a.subject} (${a.teacherName})`)
             .join(' | ');
-          row.push(`[Elective: ${slot.electiveGroup}] ${details}`);
+          const jointStr = slot.isCombined && slot.combinedClasses ? ` (Joint: ${slot.combinedClasses.join(' & ')})` : '';
+          row.push(`[Elective${jointStr}] ${details}`);
+        } else if (slot.isCombined) {
+          const compStr = slot.component ? ` [${slot.component}]` : '';
+          const jointStr = slot.combinedClasses ? ` (Joint: ${slot.combinedClasses.join(' & ')})` : '';
+          row.push(`${slot.subject}${compStr}${jointStr}\n(${slot.teacherName})`);
         } else {
-          row.push(`${slot.subject}\n(${slot.teacherName})`);
+          const compStr = slot.component ? ` [${slot.component}]` : '';
+          row.push(`${slot.subject}${compStr}\n(${slot.teacherName})`);
         }
       });
       summaryRows.push(row);
@@ -133,9 +139,15 @@ export function exportToExcel({ classes, subjects, teachers, timetable }) {
           const details = (slot.assignments || [])
             .map(a => `${a.subject} (${a.teacherName})`)
             .join(' / ');
-          row.push(`[Elective] ${details}`);
+          const jointStr = slot.isCombined && slot.combinedClasses ? ` [Joint: ${slot.combinedClasses.join(' & ')}]` : '';
+          row.push(`[Elective${jointStr}] ${details}`);
+        } else if (slot.isCombined) {
+          const compStr = slot.component ? ` [${slot.component}]` : '';
+          const jointStr = slot.combinedClasses ? ` [Joint: ${slot.combinedClasses.join(' & ')}]` : '';
+          row.push(`${jointStr} ${slot.subject}${compStr} - ${slot.teacherName}`);
         } else {
-          row.push(`${slot.subject} - ${slot.teacherName}`);
+          const compStr = slot.component ? ` [${slot.component}]` : '';
+          row.push(`${slot.subject}${compStr} - ${slot.teacherName}`);
         }
       });
       classRows.push(row);

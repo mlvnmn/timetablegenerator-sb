@@ -5,7 +5,7 @@ const STEPS = [
   { id: 1, label: 'Classes',     desc: 'Configure classes',      icon: Layers },
   { id: 2, label: 'Subjects',    desc: 'Define workloads',       icon: BookOpen },
   { id: 3, label: 'Teachers',    desc: 'Staff assignments',      icon: Users },
-  { id: 4, label: 'Constraints', desc: 'Blocked timeslots',     icon: Clock },
+  { id: 4, label: 'Constraints', desc: 'Staff & subject rules', icon: Clock },
   { id: 5, label: 'Generate',    desc: 'Build schedule',         icon: Zap },
 ];
 

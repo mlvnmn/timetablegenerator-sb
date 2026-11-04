@@ -52,3 +52,6 @@ export const COMMON_SUBJECTS = [
   'Cyber Security', 'Big Data Analytics', 'Deep Learning', 'Natural Language Processing',
   'Distributed Systems', 'Mobile Application Development', 'Embedded Systems',
 ];
+
+// ─── Subject Components ────────────────────────────────────────────────────────
+export const SUBJECT_COMPONENTS = ['Theory', 'Lab', 'Tutorial', 'Practical', 'Seminar'];

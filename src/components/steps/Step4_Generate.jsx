@@ -44,23 +44,48 @@ export default function Step4_Generate({
           const idx = Number(parts[2]);
           name = baseSubj.electiveSubjects?.[idx] || '';
         }
-
-        const allocatedHrs = allocations.get(`${t.id}::${index}`) ?? baseSubj.hoursPerWeek;
+        const rawHours = a.customHours !== undefined && a.customHours !== '' ? Number(a.customHours) : Number(a.hoursPerWeek);
+        const allocatedHrs = allocations.get(`${t.id}::${index}`) ?? (isNaN(rawHours) || rawHours <= 0 ? baseSubj.hoursPerWeek : rawHours);
         if (allocatedHrs <= 0) return [];
+
+        const isCombined = !!baseSubj.isCombined || !!a.isCombined;
+        const combinedClasses = a.combinedClasses && a.combinedClasses.length > 1
+          ? a.combinedClasses
+          : isCombined
+          ? Array.from(new Set([a.classId, ...(baseSubj.combinedWithClasses || [])]))
+          : [];
+
+        let electiveGroupName = '';
+        if (baseSubj.isElective) {
+          if (isCombined && combinedClasses.length > 1) {
+            const sortedClasses = [...combinedClasses].sort().join('_');
+            const groupIdentifier = baseSubj.jointGroupId || baseSubj.name.trim().toLowerCase().replace(/\s+/g, '_');
+            electiveGroupName = `joint_elec_${groupIdentifier}_${sortedClasses}`;
+          } else {
+            electiveGroupName = `electiveGroup_${baseSubj.id}`;
+          }
+        }
 
         return [{
           classId: a.classId,
           subject: name,
+          component: a.component || 'Theory',
           hoursPerWeek: allocatedHrs,
           isElective: !!baseSubj.isElective,
-          electiveGroup: baseSubj.isElective ? `electiveGroup_${baseSubj.id}` : '',
+          electiveGroup: electiveGroupName,
+          isCombined: isCombined && combinedClasses.length > 1,
+          combinedClasses,
+          blockedSlots: baseSubj.blockedSlots || [],
+          preferredTime: baseSubj.preferredTime || 'any',
+          maxPerDay: baseSubj.maxPerDay ? Number(baseSubj.maxPerDay) : 0,
+          consecutivePeriods: !!baseSubj.consecutivePeriods,
         }];
       }),
     }));
 
     setTimeout(() => {
       try {
-        const result = generateTimetable(classes, resolvedTeachers);
+        const result = generateTimetable(classes, resolvedTeachers, subjects);
         setTimetable(result.timetable);
         setWarnings(result.warnings);
         setGenerated(true);
@@ -151,6 +176,7 @@ export default function Step4_Generate({
             subjects={subjects}
             teachers={teachers}
             timetable={timetable}
+            setTimetable={setTimetable}
             addToast={addToast}
           />
         </div>

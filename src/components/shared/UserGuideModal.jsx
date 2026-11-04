@@ -56,9 +56,9 @@ export default function UserGuideModal({ isOpen, onClose }) {
                   2
                 </span>
                 <div>
-                  <h5 className="font-black text-[#243b4a]">Add Subjects & Workloads</h5>
+                  <h5 className="font-black text-[#243b4a]">Add Subjects, Workloads & Joint Classes</h5>
                   <p className="text-[#243b4a]/70 mt-0.5 font-medium">
-                    Add subject names and set weekly hours. Check <b>Elective Group</b> if courses run in parallel at the same time slot.
+                    Add subjects and weekly quotas. Check <b>Joint / Combined</b> if Class A & B attend the same lecture together with the same teacher, or <b>Elective</b> for parallel options.
                   </p>
                 </div>
               </div>
@@ -69,9 +69,9 @@ export default function UserGuideModal({ isOpen, onClose }) {
                   3
                 </span>
                 <div>
-                  <h5 className="font-black text-[#243b4a]">Add Teaching Staff</h5>
+                  <h5 className="font-black text-[#243b4a]">Faculty Allocation & Split Co-Teachers</h5>
                   <p className="text-[#243b4a]/70 mt-0.5 font-medium">
-                    Add faculty members and map them to their assigned class subjects.
+                    Divide a subject across 2–3 teachers hour-wise with <b>Theory, Lab, or Tutorial</b> tags. Hours and joint lectures sync automatically!
                   </p>
                 </div>
               </div>
